@@ -39,11 +39,11 @@ This alert was generated automatically by your Agentic AI monitoring system.
 if __name__ == "__main__":
     company = "Tesla"
 
-    # Step 1: Gather articles
+    # Gather articles
     articles = gather_news(company, num_articles=3)
     article_text = "\n\n".join(articles)
 
-    # Step 2: Create tasks
+    # Create tasks
     summarize_task = create_summarize_task(article_text)
     summarize_task.name = "summarize_task"
 
@@ -84,7 +84,6 @@ if __name__ == "__main__":
             if match:
                 sentiment_score = float(match.group(1))
 
-    # Step 5: Check and send alert
     if check_alert_condition(sentiment_score, summary_text):
         send_email_alert(company, summary_text, sentiment_score)
         print("Email alert sent.")
