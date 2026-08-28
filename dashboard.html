@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>NewsAct — Live Market Intelligence</title>
+<style>
+  :root {
+    --bg: #0b0e14; --panel: #131824; --border: #1f2736;
+    --text: #e6e9f0; --muted: #8892a6;
+    --green: #34d399; --red: #f87171; --amber: #fbbf24; --blue: #60a5fa;
+  }
+  * { box-sizing: border-box; margin: 0; }
+  body { background: var(--bg); color: var(--text);
+         font: 14px/1.5 -apple-system, "Segoe UI", Roboto, sans-serif; }
+  header { padding: 20px 24px; border-bottom: 1px solid var(--border);
+           display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; }
+  h1 { font-size: 20px; letter-spacing: 1px; }
+  h1 span { color: var(--green); }
+  .tag { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: 2px; }
+  .stats { margin-left: auto; display: flex; gap: 20px; font-size: 13px; color: var(--muted); }
+  .stats b { color: var(--text); }
+  .filters { padding: 14px 24px; display: flex; gap: 8px; flex-wrap: wrap; }
+  .filters button { background: var(--panel); color: var(--muted); border: 1px solid var(--border);
+                    padding: 6px 14px; border-radius: 999px; cursor: pointer; font-size: 13px; }
+  .filters button.active { color: var(--text); border-color: var(--blue); }
+  main { padding: 0 24px 40px; max-width: 900px; }
+  .card { background: var(--panel); border: 1px solid var(--border); border-radius: 10px;
+          padding: 14px 16px; margin-bottom: 10px; }
+  .row1 { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 6px; }
+  .score { font-weight: 700; font-size: 15px; min-width: 52px; }
+  .score.high { color: var(--red); } .score.med { color: var(--amber); }
+  .score.low { color: var(--muted); }
+  .pill { font-size: 11px; padding: 2px 8px; border-radius: 999px;
+          border: 1px solid var(--border); color: var(--muted); text-transform: uppercase; }
+  .dir.bullish { color: var(--green); } .dir.bearish { color: var(--red); }
+  .tickers { color: var(--blue); font-weight: 600; }
+  .title a { color: var(--text); text-decoration: none; }
+  .title a:hover { text-decoration: underline; }
+  .meta { color: var(--muted); font-size: 12px; margin-top: 6px; }
+  .summary { color: var(--muted); font-size: 13px; margin-top: 6px; font-style: italic; }
+  .empty { color: var(--muted); padding: 40px 0; text-align: center; }
+  footer { color: var(--muted); font-size: 11px; padding: 0 24px 24px; max-width: 900px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>News<span>Act</span></h1>
+  <div class="tag">Live Market Intelligence</div>
+  <div class="stats" id="stats"></div>
+</header>
+<div class="filters" id="filters">
+  <button data-f="all" class="active">All events</button>
+  <button data-f="signals">Signals ≥ 60</button>
+  <button data-f="sec">SEC</button>
+  <button data-f="government">Government</button>
+  <button data-f="news">News</button>
+  <button data-f="crypto">Crypto</button>
+</div>
+<main id="feed"><div class="empty">Loading…</div></main>
+<footer>NewsAct estimates signals from public information. It never places trades
+and is not investment advice.</footer>
+<script>
+let filter = "all";
+
+document.getElementById("filters").addEventListener("click", (e) => {
+  if (e.target.tagName !== "BUTTON") return;
+  filter = e.target.dataset.f;
+  document.querySelectorAll(".filters button").forEach(b =>
+    b.classList.toggle("active", b === e.target));
+  load();
+});
+
+function scoreClass(s) { return s >= 70 ? "high" : s >= 40 ? "med" : "low"; }
+
+function timeAgo(iso) {
+  if (!iso) return "";
+  const secs = (Date.now() - new Date(iso).getTime()) / 1000;
+  if (secs < 60) return Math.round(secs) + "s ago";
+  if (secs < 3600) return Math.round(secs / 60) + "m ago";
+  if (secs < 86400) return Math.round(secs / 3600) + "h ago";
+  return Math.round(secs / 86400) + "d ago";
+}
+
+async function load() {
+  let url = "/api/events?limit=100";
+  if (filter === "signals") url += "&min_score=60";
+  else if (filter !== "all") url += "&source_type=" + filter;
+  const [events, stats] = await Promise.all([
+    fetch(url).then(r => r.json()),
+    fetch("/api/stats").then(r => r.json()),
+  ]);
+  document.getElementById("stats").innerHTML =
+    `<div><b>${stats.total_events}</b> events</div>` +
+    `<div><b>${stats.high_signals}</b> signals</div>` +
+    `<div><b>${stats.llm_calls_today}</b> LLM calls today</div>`;
+  const feed = document.getElementById("feed");
+  if (!events.length) { feed.innerHTML = '<div class="empty">No events yet — is monitor.py running?</div>'; return; }
+  feed.innerHTML = events.map(e => `
+    <div class="card">
+      <div class="row1">
+        <span class="score ${scoreClass(e.signal_score || 0)}">${e.signal_score || 0}</span>
+        ${e.direction ? `<span class="pill dir ${e.direction}">${e.direction}</span>` : ""}
+        <span class="pill">${e.source_type}</span>
+        ${e.event_type && e.event_type !== "other" ? `<span class="pill">${e.event_type}</span>` : ""}
+        ${e.tickers.length ? `<span class="tickers">${e.tickers.join(" · ")}</span>` : ""}
+      </div>
+      <div class="title"><a href="${e.url}" target="_blank" rel="noopener">${e.title}</a></div>
+      ${e.summary ? `<div class="summary">${e.summary}</div>` : ""}
+      <div class="meta">${e.source_name} · detected ${timeAgo(e.detected_at)}</div>
+    </div>`).join("");
+}
+
+load();
+setInterval(load, 15000);
+</script>
+</body>
+</html>
