@@ -6,6 +6,8 @@ Sources are free/official first (SEC, Fed, gov/news RSS). NewsAPI is optional.
 Add a new source by subclassing DataSource and appending it in get_sources().
 """
 
+from __future__ import annotations
+
 import os
 from dataclasses import dataclass, field
 from datetime import datetime, timezone

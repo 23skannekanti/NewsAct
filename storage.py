@@ -6,6 +6,8 @@ and the signal score. Dedup is enforced by a UNIQUE content hash.
 Swap to Postgres later by porting these ~6 functions.
 """
 
+from __future__ import annotations
+
 import hashlib
 import json
 import os

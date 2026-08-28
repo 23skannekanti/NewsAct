@@ -6,6 +6,8 @@ only called for events that already look market-relevant. The LLM never sets
 the final score — Python computes it deterministically from components.
 """
 
+from __future__ import annotations
+
 import json
 import os
 import re
