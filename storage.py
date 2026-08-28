@@ -12,7 +12,7 @@ import hashlib
 import json
 import os
 import sqlite3
-from datetime import date
+from datetime import date, datatime, timedelta, timezone
 
 DB_PATH = os.getenv("NEWSACT_DB", "newsact.db")
 
@@ -88,7 +88,7 @@ def save_event(record: dict) -> int | None:
 
 
 def get_events(min_score: int = 0, ticker: str = "", source_type: str = "",
-               limit: int = 100) -> list[dict]:
+               limit: int = 100, max_age_hours: int = 0) -> list[dict]:
     query = "SELECT * FROM events WHERE COALESCE(signal_score, 0) >= ?"
     params: list = [min_score]
     if ticker:
@@ -97,7 +97,15 @@ def get_events(min_score: int = 0, ticker: str = "", source_type: str = "",
     if source_type:
         query += " AND source_type = ?"
         params.append(source_type)
-    query += " ORDER BY id DESC LIMIT ?"
+    if max_age_hours:
+        cutoff = (datetime.now(timezone.utc) -
+                  timedelta(hours=max_age_hours)).isoformat()
+        query += " AND published_at >= ?"
+        params.append(cutoff)
+    query += " ORDER BY CASE WHEN published_at = '' THEN 1 ELSE 0 END, published_at DESC LIMIT ?"
+    params.append(limit)
+
+
     params.append(limit)
     with get_conn() as conn:
         rows = conn.execute(query, params).fetchall()
