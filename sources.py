@@ -18,6 +18,14 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+def to_iso(entry) -> str: 
+    """Normalize any feed's publish date into a sortable UTC ISO string."""
+    for key in ("published_parsed", "updated_parsed"):
+        parsed = entry.get(key)
+        if parsed:
+            return datetime(*parsed[:6], tzinfo=timezone.utc).isoformat()
+    return ""
+
 # SEC requires a descriptive User-Agent on all requests.
 SEC_USER_AGENT = os.getenv("SEC_USER_AGENT", "NewsAct research tool contact@example.com")
 
@@ -67,7 +75,7 @@ class SECSource(DataSource):
                 title=entry.get("title", ""),
                 content=entry.get("summary", ""),
                 url=entry.get("link", ""),
-                published_at=entry.get("updated", ""),
+                published_at=to_iso(entry),
                 source_quality=self.quality,
                 metadata={"filing_type": "8-K"},
             ))
@@ -95,7 +103,7 @@ class RSSSource(DataSource):
             title=e.get("title", ""),
             content=e.get("summary", ""),
             url=e.get("link", ""),
-            published_at=e.get("published", e.get("updated", "")),
+            published_at=to_iso(e),
             source_quality=self.quality,
         ) for e in feed.entries]
 
