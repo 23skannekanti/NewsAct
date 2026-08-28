@@ -31,8 +31,9 @@ def health() -> dict:
 
 @app.get("/api/events")
 def events(min_score: int = 0, ticker: str = "", source_type: str = "",
-           limit: int = 100) -> list[dict]:
-    return storage.get_events(min_score, ticker, source_type, min(limit, 500))
+           limit: int = 100, max_age_hours: int = 0) -> list[dict]:
+    return storage.get_events(min_score, ticker, source_type,
+                              min(limit, 500), max_age_hours)
 
 
 @app.get("/api/signals")
