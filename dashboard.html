@@ -56,6 +56,7 @@
   <button data-f="government">Government</button>
   <button data-f="news">News</button>
   <button data-f="crypto">Crypto</button>
+  <button data-f="insights">🏛 Political</button>
   <button data-f="today">Last 24h</button>
 </div>
 <main id="feed"><div class="empty">Loading…</div></main>
@@ -84,6 +85,27 @@ function timeAgo(iso) {
 }
 
 async function load() {
+    if (filter === "insights") {
+    const esc = s => String(s ?? "").replace(/[&<>"]/g, c =>
+      ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+    const rows = await fetch("/api/insights").then(r => r.json());
+    document.getElementById("feed").innerHTML = rows.length ? rows.map(i => `
+      <div class="card">
+        <div class="row1">
+          <span class="pill">${esc(i.figures.join(", "))}</span>
+          <span class="pill">${esc(i.time_horizon)}</span>
+          <span class="pill">confidence ${Math.round((i.confidence || 0) * 100)}%</span>
+        </div>
+        <div class="title">${esc(i.headline)}</div>
+        <div class="summary">${esc(i.mechanism)}</div>
+        ${i.tickers.map(t => `<div class="meta">
+            <b class="tickers">${esc(t.ticker)}</b>
+            <span class="dir ${esc(t.direction)}">${esc(t.direction)}</span>
+            — ${esc(t.reasoning)}</div>`).join("")}
+      </div>`).join("") : '<div class="empty">No insights yet — run monitor.py.</div>';
+    return;
+  }
+  
   let url = "/api/events?limit=100";
   if (filter === "signals") url += "&min_score=60";
   else if (filter === "today") url += "&max_age_hours=24";

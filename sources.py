@@ -115,9 +115,10 @@ class NewsAPISource(DataSource):
     quality = 0.7
     poll_seconds = 900  # free tier — poll gently
 
-    def __init__(self, query: str = "stock market"):
+    def __init__(self, query: str = "stock market", name: str = "NewsAPI"):
         self.api_key = os.getenv("NEWS_API_KEY", "")
         self.query = query
+        self.name = name
 
     def fetch_events(self) -> list[RawEvent]:
         if not self.api_key:
@@ -153,6 +154,8 @@ def get_sources() -> list[DataSource]:
         RSSSource("Cointelegraph", "https://cointelegraph.com/rss",
                   "crypto", 0.7, poll_seconds=300),
         NewsAPISource(),
+        NewsAPISource(query='"Donald Trump" OR "Nancy Pelosi" OR "Ro Khanna"',
+                      name="NewsAPI Political"),
     ]
     return sources
 
