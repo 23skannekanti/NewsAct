@@ -56,6 +56,7 @@
   <button data-f="government">Government</button>
   <button data-f="news">News</button>
   <button data-f="crypto">Crypto</button>
+  <button data-f="today">Last 24h</button>
 </div>
 <main id="feed"><div class="empty">Loading…</div></main>
 <footer>NewsAct estimates signals from public information. It never places trades
@@ -85,6 +86,7 @@ function timeAgo(iso) {
 async function load() {
   let url = "/api/events?limit=100";
   if (filter === "signals") url += "&min_score=60";
+  else if (filter === "today") url += "&max_age_hours=24";
   else if (filter !== "all") url += "&source_type=" + filter;
   const [events, stats] = await Promise.all([
     fetch(url).then(r => r.json()),
@@ -107,7 +109,7 @@ async function load() {
       </div>
       <div class="title"><a href="${e.url}" target="_blank" rel="noopener">${e.title}</a></div>
       ${e.summary ? `<div class="summary">${e.summary}</div>` : ""}
-      <div class="meta">${e.source_name} · detected ${timeAgo(e.detected_at)}</div>
+      <div class="meta">${e.source_name} · published ${e.published_at ? timeAgo(e.published_at) : "unknown"}</div><div class="meta">${e.source_name} · detected ${timeAgo(e.detected_at)}</div>
     </div>`).join("");
 }
 

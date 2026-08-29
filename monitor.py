@@ -4,6 +4,7 @@ import json
 import os
 import sys
 import time
+import political
 
 from dotenv import load_dotenv
 
@@ -57,6 +58,16 @@ def process_event(event: RawEvent) -> dict | None:
     if event_id is None:
         return None
     record["id"] = event_id
+
+    # Political insight agent
+    figures = political.should_run(score, event.title, event.content)
+    if figures:
+        print(f"  🏛  political agent running ({', '.join(figures)})…")
+        insight = political.research_insight(
+            event.title, event.content, event.source_name, figures, tickers)
+        if insight:
+            storage.save_insight(event_id, figures, insight)
+            print(f"     💡 {insight['headline']}")
 
     if score >= ALERT_MINIMUM_SCORE:
         send_alert(record)

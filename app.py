@@ -45,3 +45,9 @@ def signals(min_score: int = 60, limit: int = 50) -> list[dict]:
 @app.get("/api/stats")
 def stats() -> dict:
     return storage.stats()
+
+
+@app.get("/api/insights")
+def insights(limit: int = 25) -> list[dict]:
+    """Political agent research notes. Research only — not trade recommendations."""
+    return storage.get_insights(min(limit, 100))

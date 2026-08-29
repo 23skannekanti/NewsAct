@@ -12,7 +12,7 @@ import hashlib
 import json
 import os
 import sqlite3
-from datetime import date, datatime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 
 DB_PATH = os.getenv("NEWSACT_DB", "newsact.db")
 
@@ -40,7 +40,19 @@ CREATE TABLE IF NOT EXISTS events (
 );
 CREATE TABLE IF NOT EXISTS llm_usage (
     day TEXT PRIMARY KEY,
-    calls INTEGER NOT NULL DEFAULT 0
+    calls INTEGER NOT NULL DEFAULT 0,
+    agent_calls INTEGER NOT NULL DEFAULT 0
+);
+CREATE TABLE IF NOT EXISTS insights (
+    event_id INTEGER PRIMARY KEY,
+    figures TEXT,        -- JSON list of tracked figures named
+    headline TEXT,
+    mechanism TEXT,
+    tickers TEXT,        -- JSON list of {ticker, direction, reasoning}
+    time_horizon TEXT,
+    confidence REAL,
+    caveats TEXT,
+    created_at TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_events_score ON events(signal_score);
 CREATE INDEX IF NOT EXISTS idx_events_detected ON events(detected_at);
@@ -104,9 +116,6 @@ def get_events(min_score: int = 0, ticker: str = "", source_type: str = "",
         params.append(cutoff)
     query += " ORDER BY CASE WHEN published_at = '' THEN 1 ELSE 0 END, published_at DESC LIMIT ?"
     params.append(limit)
-
-
-    params.append(limit)
     with get_conn() as conn:
         rows = conn.execute(query, params).fetchall()
     events = []
@@ -146,3 +155,45 @@ def record_llm_call() -> None:
     with get_conn() as conn:
         conn.execute("""INSERT INTO llm_usage (day, calls) VALUES (?, 1)
                         ON CONFLICT(day) DO UPDATE SET calls = calls + 1""", (today,))
+
+def agent_calls_today() -> int:
+    with get_conn() as conn:
+        row = conn.execute("SELECT agent_calls FROM llm_usage WHERE day = ?",
+                           (date.today().isoformat(),)).fetchone()
+    return row["agent_calls"] if row else 0
+
+
+def record_agent_call() -> None:
+    today = date.today().isoformat()
+    with get_conn() as conn:
+        conn.execute("""INSERT INTO llm_usage (day, calls, agent_calls) VALUES (?, 0, 1)
+                        ON CONFLICT(day) DO UPDATE SET agent_calls = agent_calls + 1""",
+                     (today,))
+
+
+def save_insight(event_id: int, figures: list, insight: dict) -> None:
+    with get_conn() as conn:
+        conn.execute(
+            """INSERT OR REPLACE INTO insights (event_id, figures, headline, mechanism,
+               tickers, time_horizon, confidence, caveats, created_at)
+               VALUES (?,?,?,?,?,?,?,?,?)""",
+            (event_id, json.dumps(figures), insight["headline"], insight["mechanism"],
+             json.dumps(insight["tickers"]), insight["time_horizon"],
+             insight["confidence"], insight["caveats"],
+             datetime.now(timezone.utc).isoformat()))
+
+
+def get_insights(limit: int = 25) -> list[dict]:
+    """Insights joined to their events, newest first."""
+    with get_conn() as conn:
+        rows = conn.execute(
+            """SELECT i.*, e.title, e.url, e.source_name, e.signal_score, e.published_at
+               FROM insights i JOIN events e ON e.id = i.event_id
+               ORDER BY i.created_at DESC LIMIT ?""", (limit,)).fetchall()
+    out = []
+    for row in rows:
+        d = dict(row)
+        d["figures"] = json.loads(d["figures"] or "[]")
+        d["tickers"] = json.loads(d["tickers"] or "[]")
+        out.append(d)
+    return out
