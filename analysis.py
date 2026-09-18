@@ -73,11 +73,23 @@ def guess_event_type(matched: list[str]) -> str:
     return KEYWORDS[matched[0]] if matched else "other"
 
 
-def extract_tickers(event: RawEvent) -> list[str]:
+def extract_tickers_py(event: RawEvent) -> list[str]:
     text = f"{event.title} {event.content}".lower()
     found = {tick for name, tick in TICKER_MAP.items()
              if re.search(rf"\b{re.escape(name)}\b", text)}
     return sorted(found)
+
+try:
+    import fastmatch
+    _MATCHER = fastmatch.TickerMatcher(list(TICKER_MAP.items()))
+except ImportError:
+    _MATCHER = None
+
+
+def extract_tickers(event: RawEvent) -> list[str]:
+    if _MATCHER is not None:
+        return _MATCHER.scan(f"{event.title} {event.content}")
+    return extract_tickers_py(event)
 
 
 # ------------------------------------------------------------------ LLM step
