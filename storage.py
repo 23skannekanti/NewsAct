@@ -54,6 +54,19 @@ CREATE TABLE IF NOT EXISTS insights (
     caveats TEXT,
     created_at TEXT
 );
+
+CREATE TABLE IF NOT EXISTS scorecard (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    event_id INTEGER NOT NULL,
+    ticker TEXT NOT NULL,
+    source TEXT,
+    score INTEGER,
+    price_then REAL,
+    price_later REAL,
+    pct_move REAL,
+    created_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_scorecard_ungraded ON scorecard(price_later);
 CREATE INDEX IF NOT EXISTS idx_events_score ON events(signal_score);
 CREATE INDEX IF NOT EXISTS idx_events_detected ON events(detected_at);
 """
@@ -197,3 +210,5 @@ def get_insights(limit: int = 25) -> list[dict]:
         d["tickers"] = json.loads(d["tickers"] or "[]")
         out.append(d)
     return out
+
+

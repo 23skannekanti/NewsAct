@@ -5,7 +5,7 @@ import os
 import sys
 import time
 import political
-
+import scorecard
 from dotenv import load_dotenv
 
 
@@ -58,6 +58,13 @@ def process_event(event: RawEvent) -> dict | None:
     if event_id is None:
         return None
     record["id"] = event_id
+
+    if tickers:
+        try:
+            scorecard.log_prediction(event_id, tickers, event.source_name, score)
+        except Exception as e:
+            print(f"  scorecard failed: {e}")
+    
 
     # Political insight agent
     figures = political.should_run(score, event.title, event.content)
@@ -116,6 +123,33 @@ def run(once: bool = False) -> None:
             if now >= next_run[source.name]:
                 poll_source(source)
                 next_run[source.name] = now + source.poll_seconds
+        if once:
+            break
+        time.sleep(5)
+
+def run(once: bool = False) -> None:
+    storage.init_db()
+    sources = get_sources()
+    next_run = {s.name: 0.0 for s in sources}
+    next_grade = 0.0
+    print(f"NewsAct monitor started — {len(sources)} sources, "
+          f"alert threshold {ALERT_MINIMUM_SCORE}. Ctrl+C to stop.")
+    while True:
+        now = time.time()
+        for source in sources:
+            if now >= next_run[source.name]:
+                poll_source(source)
+                next_run[source.name] = now + source.poll_seconds
+
+        if now >= next_grade:
+            try:
+                n = scorecard.grade_old_predictions()
+                if n:
+                    print(f"  📊 graded {n} predictions")
+            except Exception as e:
+                print(f"  grading failed: {e}")
+            next_grade = now + 1800
+
         if once:
             break
         time.sleep(5)
