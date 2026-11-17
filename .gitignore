@@ -25,3 +25,10 @@ apikeys.py
 # Anaconda
 *.conda
 *.log
+
+__pycache__/
+build/
+*.so
+*.o
+newsact.db
+logs.txt
